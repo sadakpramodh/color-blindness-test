@@ -2,7 +2,12 @@ from flask import Flask, render_template, request, jsonify, send_file
 import pyttsx3
 import random
 import os
-
+try:
+    import pyttsx3
+    engine = pyttsx3.init()
+except Exception as e:
+    engine = None
+    print(f"pyttsx3 not available: {e}")
 app = Flask(__name__)
 
 # Initialize the text-to-speech engine
