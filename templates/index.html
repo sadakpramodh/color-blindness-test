@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Blindness Test</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .timer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+    </style>
+    <script>
+        let colorIndex = 0;
+        let startTime;
+        let colorStartTime;
+        let endTime;
+        let correctColors = 0;
+        let totalColors = 4; // Adjust if you add more colors
+        let colors = [];
+        let timeTakenPerColor = [];
+
+        function startTest() {
+            fetch('/start_test', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                colors = data.colors;
+                startTime = new Date();
+                colorStartTime = new Date();
+                colorIndex = 0;
+                correctColors = 0;
+                timeTakenPerColor = [];
+                document.getElementById('begin-test').style.display = 'none';
+                document.getElementById('replay-sound').style.display = 'inline-block';
+                document.getElementById('color-options').style.display = 'block';
+                document.getElementById('results').style.display = 'none';
+                playColor(colors[colorIndex]);
+                document.getElementById('color-instructions').innerText = colors[colorIndex];
+                startTimer();
+            });
+        }
+
+        function playColor(color) {
+            fetch('/speak_color', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ color: color })
+            }).then(response => response.blob()).then(blob => {
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+            }).catch(error => console.error('Error:', error));
+        }
+
+        function checkAnswer(selectedColor) {
+            const correctColor = document.getElementById('color-instructions').innerText;
+            const now = new Date();
+            const timeTaken = (now - colorStartTime) / 1000;
+            const isCorrect = selectedColor === correctColor;
+            timeTakenPerColor.push({ color: correctColor, time: timeTaken, isCorrect });
+
+            if (isCorrect) {
+                correctColors++;
+            }
+
+            colorIndex++;
+            if (colorIndex < totalColors) {
+                document.getElementById('color-instructions').innerText = colors[colorIndex];
+                playColor(colors[colorIndex]);
+                colorStartTime = new Date();
+            } else {
+                endTime = new Date();
+                const totalTimeTaken = (endTime - startTime) / 1000;
+                document.getElementById('color-options').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('timer').style.display = 'none';
+                document.getElementById('color-instructions').style.display = 'none';
+                document.getElementById('replay-sound').style.display = 'none';
+                displayResults(totalTimeTaken);
+                stopTimer();
+            }
+        }
+
+        function displayResults(totalTimeTaken) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<p>Total time taken: ${totalTimeTaken} seconds</p>`;
+            resultsDiv.innerHTML += `<p>Score: ${correctColors} out of ${totalColors}</p>`;
+            resultsDiv.innerHTML += `<h3>Time taken per color:</h3>`;
+            resultsDiv.innerHTML += `<ul>`;
+            timeTakenPerColor.forEach(item => {
+                const resultClass = item.isCorrect ? 'correct' : 'incorrect';
+                const resultText = item.isCorrect ? 'Correct' : 'Incorrect';
+                resultsDiv.innerHTML += `<li>${item.color}: ${item.time} seconds - <span class="${resultClass}">${resultText}</span></li>`;
+            });
+            resultsDiv.innerHTML += `</ul>`;
+        }
+
+        function replaySound() {
+            const color = document.getElementById('color-instructions').innerText;
+            playColor(color);
+        }
+
+        let timerInterval;
+        function startTimer() {
+            const timerElement = document.getElementById('timer');
+            timerInterval = setInterval(() => {
+                const now = new Date();
+                const elapsedTime = ((now - startTime) / 1000).toFixed(1);
+                timerElement.innerText = `Time: ${elapsedTime} s`;
+            }, 100);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+    </script>
+</head>
+<body class="container">
+    <div class="timer" id="timer"></div>
+    <h1 class="mt-5">Color Blindness Test</h1>
+    <button id="begin-test" class="btn btn-primary btn-lg" onclick="startTest()">Begin Test</button>
+    <p id="color-instructions" class="mt-3"></p>
+    <button id="replay-sound" class="btn btn-secondary btn-lg" onclick="replaySound()" style="display: none;">Replay Sound</button>
+    <div id="color-options" class="mt-3" style="display: none;">
+        <button class="btn btn-danger btn-lg m-2" style="width: 150px; height: 150px;" onclick="checkAnswer('Red')">Red</button>
+        <button class="btn btn-success btn-lg m-2" style="width: 150px; height: 150px;" onclick="checkAnswer('Green')">Green</button>
+        <button class="btn btn-primary btn-lg m-2" style="width: 150px; height: 150px;" onclick="checkAnswer('Blue')">Blue</button>
+        <button class="btn btn-warning btn-lg m-2" style="width: 150px; height: 150px;" onclick="checkAnswer('Yellow')">Yellow</button>
+    </div>
+    <div id="results" class="mt-5" style="display: none;"></div>
+</body>
+</html>
