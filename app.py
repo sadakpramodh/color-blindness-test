@@ -1,16 +1,9 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import random
 import os
-try:
-    import pyttsx3
-    engine = pyttsx3.init()
-except Exception as e:
-    engine = None
-    print(f"pyttsx3 not available: {e}")
-app = Flask(__name__)
+from gtts import gTTS
 
-# Initialize the text-to-speech engine
-engine = pyttsx3.init()
+app = Flask(__name__)
 
 colors = ['Red', 'Green', 'Blue', 'Yellow']
 
@@ -28,8 +21,8 @@ def speak_color():
     try:
         color = request.json['color']
         filename = f"static/{color}.mp3"
-        engine.save_to_file(color, filename)
-        engine.runAndWait()
+        tts = gTTS(text=color, lang='en')
+        tts.save(filename)
         return send_file(filename, mimetype="audio/mpeg")
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
